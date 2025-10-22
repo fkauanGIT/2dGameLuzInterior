@@ -16,6 +16,7 @@ public class GameScreen extends ScreenAdapter {
     private SpriteBatch batch;
     private OrthographicCamera camera;
     private IsometricRenderer renderer;
+    private Player player;
 
     public GameScreen(SpriteBatch batch) {
         this.batch = batch;
@@ -27,6 +28,8 @@ public class GameScreen extends ScreenAdapter {
         camera.position.set(WIDTH / 2 - 500, HEIGHT / 2, 10);
 
         renderer = new IsometricRenderer();
+
+        player = new Player();
     }
 
     @Override
@@ -35,21 +38,22 @@ public class GameScreen extends ScreenAdapter {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         batch.setProjectionMatrix(camera.combined);
 
-        camera.update();
-
         handleInput();
+        player.update(delta);
+        camera.update();
 
         batch.begin();
 
         renderer.drawGround(batch);
+        player.render(batch);
 
         batch.end();
     }
 
     private void handleInput() {
-        if(input.isKeyPressed(Input.Keys.A)){
+        if(input.isKeyPressed(Input.Keys.Q)){
             camera.zoom -= 0.002f;
-        } else if (input.isKeyPressed(Input.Keys.D)) {
+        } else if (input.isKeyPressed(Input.Keys.E)) {
             camera.zoom += 0.002f;
         }
 

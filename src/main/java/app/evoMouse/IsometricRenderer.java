@@ -11,15 +11,17 @@ public class IsometricRenderer {
 
     private int[][] map;
 
-    public static final int TILE_WIDTH = 34;
-    public static final int TILE_HEIGHT = 34;
+    public static final int TILE_WIDTH = 64;
+    public static final int TILE_HEIGHT = 64;
 
     public Texture grass;
     public Texture grass_2;
+    public Texture grass_3;
 
     public IsometricRenderer() {
         grass = new Texture(Gdx.files.internal("assets/grass.png"));
         grass_2= new Texture(Gdx.files.internal("assets/grass_2.png"));
+//        grass_3= new Texture(Gdx.files.internal("assets/tree1.png"));
         map = generateMap();
     }
 
@@ -34,6 +36,11 @@ public class IsometricRenderer {
                 } else if (map[row][col] == 0) {
                     batch.draw(grass_2, x, y, TILE_WIDTH, TILE_HEIGHT);
                 }
+
+//                if (map[row][col] == 2) {
+//                    batch.draw(grass, x, y, TILE_WIDTH, TILE_HEIGHT); // chão base
+//                    batch.draw(grass_3, x, y + TILE_HEIGHT / 2f, TILE_WIDTH, TILE_HEIGHT * 2f);
+//                }
             }
         }
 
@@ -59,12 +66,13 @@ public class IsometricRenderer {
 
                 if(num < 2) {
                     map[row][col] = 0;
-                } else {
+                }else {
                     map[row][col] = 1;
                 }
             }
         }
 
+        map[0][0] = 1;
         return map;
     }
 }
