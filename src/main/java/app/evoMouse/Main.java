@@ -22,7 +22,7 @@ public class Main {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
 
         // Definir título da janela
-        config.setTitle("2D - EvoMouse");
+        config.setTitle("2D - DemonSlayer");
 
         // Definir tamanho da janela
         config.setWindowedMode(GameScreen.WIDTH, GameScreen.HEIGHT);

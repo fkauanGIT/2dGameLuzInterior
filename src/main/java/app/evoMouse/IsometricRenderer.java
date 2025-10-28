@@ -54,12 +54,12 @@ public class IsometricRenderer {
      * Construtor padrão que inicializa todas as texturas e gera o primeiro mapa procedural.
      */
     public IsometricRenderer() {
-        grass = new Texture(Gdx.files.internal("assets/grass_1.png"));
-        grass_2 = new Texture(Gdx.files.internal("assets/grass_2.png"));
-        grass_3 = new Texture(Gdx.files.internal("assets/grass_3.png"));
-        tree_1 = new Texture(Gdx.files.internal("assets/tree-1.png"));
-        tree_2 = new Texture(Gdx.files.internal("assets/tree-2.png"));
-        tronco = new Texture(Gdx.files.internal("assets/tronco.png"));
+        grass = new Texture(Gdx.files.internal("assets/blocks/grass_1.png"));
+        grass_2 = new Texture(Gdx.files.internal("assets/blocks/grass_2.png"));
+        grass_3 = new Texture(Gdx.files.internal("assets/blocks/grass_3.png"));
+        tree_1 = new Texture(Gdx.files.internal("assets/landscape_elements/tree-1.png"));
+        tree_2 = new Texture(Gdx.files.internal("assets/landscape_elements/tree-2.png"));
+        tronco = new Texture(Gdx.files.internal("assets/landscape_elements/tronco.png"));
         map = generateMap();
     }
 

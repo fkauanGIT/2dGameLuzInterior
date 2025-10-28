@@ -12,124 +12,236 @@ import static app.evoMouse.IsometricRenderer.TILE_HEIGHT;
 import static app.evoMouse.IsometricRenderer.TILE_WIDTH;
 
 /**
- * Representa o jogador na cena isométrica, gerenciando posição, animações de movimento e idle.
- * Controla atualizações da posição a cada frame conforme entrada do teclado (WASD) e renderiza
- * o sprite animado na tela.
+ * Representa o jogador controlável na cena isométrica do jogo.
+ * <p>
+ * Responsável por:
+ * <ul>
+ *     <li>Gerenciar a posição e direção do personagem</li>
+ *     <li>Processar entrada de teclado (WASD e X)</li>
+ *     <li>Executar e alternar entre animações de movimento, idle e ataque</li>
+ *     <li>Renderizar o sprite corretamente ajustado ao tile isométrico</li>
+ * </ul>
  */
 public class Player implements Entity {
 
-    /** Animações para caminhar nas quatro direções */
+    // ============================================================
+    // === Campos de animação ====================================
+    // ============================================================
+
+    /** Animações de caminhada nas quatro direções */
     private final Animation<TextureRegion> walkUp, walkDown, walkLeft, walkRight;
 
-    /** Animações para estado parado (‘idle’) nas quatro direções */
+    /** Animações de idle (parado) nas quatro direções */
     private final Animation<TextureRegion> idleUp, idleDown, idleLeft, idleRight;
 
-    /** Tempo acumulado para controle do frame atual da animação */
-    private float stateTime;
+    /** Animações de ataque (primeiro golpe) nas quatro direções */
+    private final Animation<TextureRegion> attackUpOne, attackDownOne, attackLeftOne, attackRightOne;
 
-    /** Animação atualmente em execução */
-    private Animation<TextureRegion> currentAnimation;
+    /** Animações de ataque (segundo golpe do combo) nas quatro direções */
+    private final Animation<TextureRegion> attackUpTwo, attackDownTwo, attackLeftTwo, attackRightTwo;
 
-    /** Indica se o jogador está se movendo neste frame */
-    private boolean moving;
-
-    /** Coordenadas posicionais do jogador no espaço isométrico */
-    private final Vector2 pos;
-
-    /** Velocidade de movimento em píxels por frame */
-    private final float speed = 2f;
+    /** Direção atual para a qual o jogador está olhando */
+    private Direction facing = Direction.DOWN;
 
     /**
-     * Inicializa o jogador na posição (0,0) e carrega as animações de movimento e idle.
-     * Define a animação inicial como 'idle' para baixo.
+     * Enumeração de direções possíveis que o jogador pode estar voltado.
+     */
+    private enum Direction {
+        UP, DOWN, LEFT, RIGHT
+    }
+
+    // ============================================================
+    // === Controle de ataque e combo =============================
+    // ============================================================
+
+    /** Indica se o jogador está executando uma animação de ataque */
+    private boolean isAttacking = false;
+
+    /** Estágio atual do ataque: 0 = nenhum, 1 = primeiro ataque, 2 = segundo ataque */
+    private int attackStage = 0;
+
+    /** Tempo decorrido desde o início ou final do último ataque */
+    private float attackTimer = 0f;
+
+    /** Tempo limite (em segundos) para permitir o segundo ataque em sequência (combo) */
+    private final float comboWindow = 0.4f;
+
+    // ============================================================
+    // === Controle geral de animação e posição ===================
+    // ============================================================
+
+    /** Tempo acumulado de execução da animação atual */
+    private float stateTime;
+
+    /** Animação atualmente em execução (idle, movimento ou ataque) */
+    private Animation<TextureRegion> currentAnimation;
+
+    /** Indica se o jogador está se movendo no frame atual */
+    private boolean moving;
+
+    /** Posição do jogador no mundo isométrico (coordenadas X e Y) */
+    private final Vector2 pos;
+
+    /** Velocidade de deslocamento do jogador em pixels por frame */
+    private final float speed = 2f;
+
+    // ============================================================
+    // === Construtor =============================================
+    // ============================================================
+
+    /**
+     * Inicializa o jogador na posição (0,0), define animações e estado inicial.
+     * <p>
+     * Todas as animações são carregadas a partir dos diretórios dentro de
+     * <code>assets/sprite_player</code>, seguindo a convenção:
+     * <ul>
+     *     <li><b>walk/</b> — Animações de movimento</li>
+     *     <li><b>idle/</b> — Animações paradas</li>
+     *     <li><b>attack/one</b> — Primeiro golpe</li>
+     *     <li><b>attack/two</b> — Segundo golpe</li>
+     * </ul>
      */
     public Player() {
         pos = new Vector2(0, 0);
         stateTime = 0f;
 
-        walkUp = loadAnimation("assets/sprite_player/top/walk", 7, 0.1f);
+        // Carrega animações de movimento
+        walkUp = loadAnimation("assets/sprite_player/up/walk", 7, 0.1f);
         walkDown = loadAnimation("assets/sprite_player/down/walk", 7, 0.1f);
         walkLeft = loadAnimation("assets/sprite_player/left/walk", 7, 0.1f);
         walkRight = loadAnimation("assets/sprite_player/right/walk", 7, 0.1f);
 
-        idleUp = loadAnimation("assets/sprite_player/top/idle", 7, 0.1f);
+        // Carrega animações idle
+        idleUp = loadAnimation("assets/sprite_player/up/idle", 7, 0.1f);
         idleDown = loadAnimation("assets/sprite_player/down/idle", 7, 0.1f);
         idleLeft = loadAnimation("assets/sprite_player/left/idle", 7, 0.1f);
         idleRight = loadAnimation("assets/sprite_player/right/idle", 7, 0.1f);
 
+        // Carrega ataques (primeiro e segundo estágio)
+        attackUpOne = loadAnimation("assets/sprite_player/up/attack/one", 7, 0.1f);
+        attackDownOne = loadAnimation("assets/sprite_player/down/attack/one", 7, 0.1f);
+        attackLeftOne = loadAnimation("assets/sprite_player/left/attack/one", 7, 0.1f);
+        attackRightOne = loadAnimation("assets/sprite_player/right/attack/one", 7, 0.1f);
+
+        attackUpTwo = loadAnimation("assets/sprite_player/up/attack/two", 7, 0.1f);
+        attackDownTwo = loadAnimation("assets/sprite_player/down/attack/two", 7, 0.1f);
+        attackLeftTwo = loadAnimation("assets/sprite_player/left/attack/two", 7, 0.1f);
+        attackRightTwo = loadAnimation("assets/sprite_player/right/attack/two", 7, 0.1f);
+
+        // Define animação inicial
         currentAnimation = idleDown;
     }
 
+    // ============================================================
+    // === Atualização por frame =================================
+    // ============================================================
+
     /**
-     * Atualiza o estado do jogador, processando entrada e ajustando posição e animação.
-     * Movimentos combinam deslocamentos diagonais para simular visão isométrica.
-     * Atualiza o tempo da animação para controlar o frame corrente.
+     * Atualiza o estado do jogador a cada frame.
+     * <p>
+     * Processa entrada do teclado, altera animações e calcula o deslocamento
+     * no plano isométrico. Também gerencia o ciclo de ataque e combos.
      *
-     * @param delta tempo em segundos desde a última atualização (frame)
+     * @param delta tempo (em segundos) desde o último frame
      */
     @Override
     public void update(float delta) {
         moving = false;
         Vector2 direction = new Vector2();
 
-        // Captura das teclas — cada uma define uma direção
+        // --- Controle de ataque ativo ---
+        if (isAttacking) {
+            attackTimer += delta;
+
+            // Verifica se a animação de ataque atual terminou
+            if (currentAnimation.isAnimationFinished(stateTime)) {
+                if (attackStage == 1 && attackTimer > comboWindow) {
+                    // Não executou segundo ataque dentro do tempo
+                    isAttacking = false;
+                    attackStage = 0;
+                    resetToIdle();
+                } else if (attackStage == 2) {
+                    // Segundo ataque finalizado
+                    isAttacking = false;
+                    attackStage = 0;
+                    resetToIdle();
+                }
+            }
+
+            // Permite iniciar o segundo golpe dentro da janela de combo
+            if (attackStage == 1 && Gdx.input.isKeyJustPressed(Input.Keys.X) && attackTimer <= comboWindow) {
+                attackStage = 2;
+                startAttack(2);
+            }
+
+            stateTime += delta;
+            return; // Sai — jogador não pode se mover enquanto ataca
+        }
+
+        // --- Movimento (WASD) ---
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            // Diagonal cima-direita
-            direction.x -= 0;
             direction.y += 1;
             currentAnimation = walkUp;
+            facing = Direction.UP;
             moving = true;
         } else if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            // Diagonal baixo-esquerda
-            direction.x -= 0;
             direction.y -= 1;
             currentAnimation = walkDown;
+            facing = Direction.DOWN;
             moving = true;
         }
 
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            // Esquerda (pura)
             direction.x -= 1;
-            direction.y += 0; // Mantém
             currentAnimation = walkLeft;
+            facing = Direction.LEFT;
             moving = true;
         } else if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            // Direita (pura)
             direction.x += 1;
-            direction.y -= 0;
             currentAnimation = walkRight;
+            facing = Direction.RIGHT;
             moving = true;
         }
 
-        // Normaliza direção (para não andar mais rápido na diagonal)
+        // --- Início do ataque ---
+        if (Gdx.input.isKeyJustPressed(Input.Keys.X)) {
+            attackStage = 1;
+            startAttack(1);
+            return; // Sai — sem movimento neste frame
+        }
+
+        // --- Atualiza posição ---
         if (!direction.isZero()) {
-            direction.nor();
+            direction.nor(); // Normaliza para manter velocidade constante na diagonal
             pos.add(direction.scl(speed));
         }
 
-        // Se não estiver a mover, muda para animação 'idle'
+        // --- Retorna para idle se parado ---
         if (!moving) {
-            if (currentAnimation == walkUp) currentAnimation = idleUp;
-            else if (currentAnimation == walkDown) currentAnimation = idleDown;
-            else if (currentAnimation == walkLeft) currentAnimation = idleLeft;
-            else if (currentAnimation == walkRight) currentAnimation = idleRight;
+            resetToIdle();
         }
 
-        // Atualiza o tempo da animação
         stateTime += delta;
     }
 
+    // ============================================================
+    // === Renderização ==========================================
+    // ============================================================
 
     /**
-     * Renderiza o sprite do jogador na posição atual utilizando a animação corrente.
-     * Ajusta escala e posicionamento para centralizar corretamente no tile isométrico.
+     * Renderiza o sprite do jogador na tela.
+     * <p>
+     * Calcula a posição de desenho para centralizar corretamente o personagem
+     * no tile isométrico e aplica uma leve escala no sprite.
      *
-     * @param batch objeto utilizado para desenhar gráficos na tela
+     * @param batch objeto usado para desenhar os gráficos na tela
      */
     @Override
     public void render(SpriteBatch batch) {
         float scale = 1.5f;
-        TextureRegion frame = currentAnimation.getKeyFrame(stateTime, true);
+
+        // Em ataques, a animação toca uma vez (false); nas demais, em loop (true)
+        TextureRegion frame = currentAnimation.getKeyFrame(stateTime, !isAttacking);
 
         float spriteWidth = frame.getRegionWidth() * scale;
         float spriteHeight = frame.getRegionHeight() * scale;
@@ -140,13 +252,17 @@ public class Player implements Entity {
         batch.draw(frame, drawX, drawY, spriteWidth, spriteHeight);
     }
 
+    // ============================================================
+    // === Utilitários privados ==================================
+    // ============================================================
+
     /**
-     * Carrega uma animação a partir da sequência de imagens no caminho especificado.
+     * Carrega uma animação a partir de uma sequência de imagens em um diretório.
      *
-     * @param path diretório base dos frames da animação
-     * @param frameCount quantidade de frames na animação
-     * @param frameDuration duração de cada frame em segundos
-     * @return animação construída com os frames carregados
+     * @param path          caminho base onde os frames estão armazenados
+     * @param frameCount    número total de frames
+     * @param frameDuration tempo de exibição de cada frame (em segundos)
+     * @return instância de {@link Animation} configurada
      */
     private Animation<TextureRegion> loadAnimation(String path, int frameCount, float frameDuration) {
         TextureRegion[] frames = new TextureRegion[frameCount];
@@ -157,16 +273,66 @@ public class Player implements Entity {
     }
 
     /**
-     * Retorna a coordenada X isométrica atual do jogador.
+     * Inicia a animação de ataque conforme a direção atual e estágio do combo.
      *
-     * @return posição X no espaço isométrico
+     * @param stage estágio do ataque (1 = primeiro golpe, 2 = segundo golpe)
      */
-    public float getIsoX() { return pos.x; }
+    private void startAttack(int stage) {
+        isAttacking = true;
+        attackTimer = 0f;
+        stateTime = 0f;
+
+        switch (stage) {
+            case 1 -> {
+                switch (facing) {
+                    case UP -> currentAnimation = attackUpOne;
+                    case DOWN -> currentAnimation = attackDownOne;
+                    case LEFT -> currentAnimation = attackLeftOne;
+                    case RIGHT -> currentAnimation = attackRightOne;
+                }
+            }
+            case 2 -> {
+                switch (facing) {
+                    case UP -> currentAnimation = attackUpTwo;
+                    case DOWN -> currentAnimation = attackDownTwo;
+                    case LEFT -> currentAnimation = attackLeftTwo;
+                    case RIGHT -> currentAnimation = attackRightTwo;
+                }
+            }
+        }
+    }
 
     /**
-     * Retorna a coordenada Y isométrica atual do jogador.
-     *
-     * @return posição Y no espaço isométrico
+     * Retorna o jogador ao estado idle apropriado com base na última direção.
      */
-    public float getIsoY() { return pos.y; }
+    private void resetToIdle() {
+        switch (facing) {
+            case UP -> currentAnimation = idleUp;
+            case DOWN -> currentAnimation = idleDown;
+            case LEFT -> currentAnimation = idleLeft;
+            case RIGHT -> currentAnimation = idleRight;
+        }
+    }
+
+    // ============================================================
+    // === Getters ===============================================
+    // ============================================================
+
+    /**
+     * Obtém a posição X atual do jogador no espaço isométrico.
+     *
+     * @return coordenada X
+     */
+    public float getIsoX() {
+        return pos.x;
+    }
+
+    /**
+     * Obtém a posição Y atual do jogador no espaço isométrico.
+     *
+     * @return coordenada Y
+     */
+    public float getIsoY() {
+        return pos.y;
+    }
 }
